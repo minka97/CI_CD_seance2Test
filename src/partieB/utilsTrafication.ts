@@ -1,5 +1,5 @@
 /** @format */
-import type { DeliveryFee } from "../types/types.js";
+import type { DeliveryFee, PromoCode } from "../types/types.js";
 function calculateDeliveryFee(distance: number, weight: number): DeliveryFee {
   // 🔴 Cas d'erreur
   if (distance < 0) {
@@ -33,4 +33,55 @@ function calculateDeliveryFee(distance: number, weight: number): DeliveryFee {
   return Number(fee.toFixed(2));
 }
 
-export { calculateDeliveryFee };
+function applyPromoCode(
+  subtotal: number,
+  promoCode: PromoCode,
+  promoCodes: PromoCode[],
+): number {
+  // 🔴 erreur input
+  if (subtotal < 0) {
+    throw new Error("Subtotal cannot be negative");
+  }
+
+  // 🟡 pas de code → pas de reduction
+  if (!promoCode) {
+    return subtotal;
+  }
+
+  // 🔴 code inconnu
+  const promo = promoCodes.find((p) => p.code === promoCode.code);
+  if (!promo) {
+    throw new Error("Invalid promo code");
+  }
+
+  // 🔴 expiration
+  const today = new Date();
+  const expiration = new Date(promo.expiresAt);
+
+  if (expiration < today) {
+    throw new Error("Promo code expired");
+  }
+
+  // 🔴 minimum de commande
+  if (subtotal < promo.minOrder) {
+    throw new Error("Minimum order not reached");
+  }
+
+  let total = subtotal;
+
+  // 🟢 appliquer reduction
+  if (promo.type === "percentage") {
+    total = subtotal - (subtotal * promo.value) / 100;
+  } else if (promo.type === "fixed") {
+    total = subtotal - promo.value;
+  }
+
+  // 🟡 pas de negatif
+  if (total < 0) {
+    total = 0;
+  }
+
+  return Number(total.toFixed(2));
+}
+
+export { calculateDeliveryFee, applyPromoCode };
