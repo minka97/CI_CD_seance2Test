@@ -1,5 +1,6 @@
 /** @format */
 
+import type { Student } from "./types/types.js";
 export function capitalize(str: string | null): string {
   if (!str) return "";
 
@@ -32,4 +33,26 @@ export function slugify(text: string): string {
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+export function sortStudents(
+  students: Student[],
+  sortBy: "name" | "grade" | "age",
+  order: "asc" | "desc" = "asc",
+): Student[] {
+  if (!students) return [];
+
+  return [...students].sort((a, b) => {
+    let comparison = 0;
+
+    if (sortBy === "grade") {
+      comparison = a.grade - b.grade;
+    } else if (sortBy === "age") {
+      comparison = a.age - b.age;
+    } else if (sortBy === "name") {
+      comparison = a.name.localeCompare(b.name);
+    }
+
+    return order === "desc" ? -comparison : comparison;
+  });
 }
