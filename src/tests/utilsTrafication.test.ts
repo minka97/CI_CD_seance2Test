@@ -4,8 +4,9 @@ import {
   calculateDeliveryFee,
   applyPromoCode,
   calculateSurge,
+  calculateOrderTotal,
 } from "../partieB/utilsTrafication.js";
-import type { PromoCode } from "../types/types.js";
+import type { PromoCode, Item, Day } from "../types/types.js";
 
 describe("calculateDeliveryFee", () => {
   // 🟢 Cas normaux
@@ -124,11 +125,13 @@ describe("applyPromoCode", () => {
 
   // 🟡 cas limites
   test("should return 0 when fixed discount exceeds subtotal", () => {
-    expect(
-      applyPromoCode(3, bienvenue20, [
-        { ...bienvenue20, minOrder: 0, type: "fixed", value: 10 },
-      ]),
-    ).toBe(0);
+    const bigDiscount: PromoCode = {
+      ...bienvenue20,
+      type: "fixed",
+      value: 10,
+      minOrder: 0,
+    };
+    expect(applyPromoCode(3, bigDiscount, [bigDiscount])).toBe(0);
   });
 
   test("should return 0 when percentage promo is 100%", () => {
@@ -148,9 +151,7 @@ describe("applyPromoCode", () => {
 
   // 🚫 inputs invalides
   test("should return subtotal without reduction when promo code is null", () => {
-    expect(applyPromoCode(20, null as unknown as PromoCode, promoCodes)).toBe(
-      20,
-    );
+    expect(applyPromoCode(20, null as unknown as PromoCode, promoCodes)).toBe(20);
   });
 
   test("should throw when subtotal is negative", () => {
@@ -160,44 +161,229 @@ describe("applyPromoCode", () => {
 
 describe("calculateSurge", () => {
   // 🟢 cas normaux
-  test("mardi 15h → normal (1.0)", () => {
-    expect(calculateSurge(15, "tuesday")).toBe(1.0);
+  test("should return 1.0 when day is tuesday and hour is 15h", () => {
+    expect(calculateSurge(15, "tuesday" as Day)).toBe(1.0);
   });
 
-  test("mercredi 12h30 → déjeuner (1.3)", () => {
-    expect(calculateSurge(12.5, "wednesday")).toBe(1.3);
+  test("should return 1.3 when day is wednesday and hour is 12h30 (lunch)", () => {
+    expect(calculateSurge(12.5, "wednesday" as Day)).toBe(1.3);
   });
 
-  test("jeudi 20h → dîner (1.5)", () => {
-    expect(calculateSurge(20, "thursday")).toBe(1.5);
+  test("should return 1.5 when day is thursday and hour is 20h (dinner)", () => {
+    expect(calculateSurge(20, "thursday" as Day)).toBe(1.5);
   });
 
-  test("vendredi 21h → weekend soir (1.8)", () => {
-    expect(calculateSurge(21, "friday")).toBe(1.8);
+  test("should return 1.8 when day is friday and hour is 21h (weekend evening)", () => {
+    expect(calculateSurge(21, "friday" as Day)).toBe(1.8);
   });
 
-  test("dimanche 14h → dimanche (1.2)", () => {
-    expect(calculateSurge(14, "sunday")).toBe(1.2);
+  test("should return 1.2 when day is sunday and hour is 14h", () => {
+    expect(calculateSurge(14, "sunday" as Day)).toBe(1.2);
   });
 
   // 🟡 limites
-  test("11h30 → encore normal (1.0)", () => {
-    expect(calculateSurge(11.5, "monday")).toBe(1.0);
+  test("should return 1.0 when hour is 11h30 (before lunch)", () => {
+    expect(calculateSurge(11.5, "monday" as Day)).toBe(1.0);
   });
 
-  test("19h pile → dinner (1.5)", () => {
-    expect(calculateSurge(19, "wednesday")).toBe(1.5);
+  test("should return 1.5 when hour is exactly 19h on wednesday", () => {
+    expect(calculateSurge(19, "wednesday" as Day)).toBe(1.5);
   });
 
-  test("22h pile → encore ouvert (1.8 vendredi)", () => {
-    expect(calculateSurge(22, "friday")).toBe(1.8);
+  test("should return 1.8 when hour is exactly 22h on friday", () => {
+    expect(calculateSurge(22, "friday" as Day)).toBe(1.8);
   });
 
-  test("9h59 → fermé (0)", () => {
-    expect(calculateSurge(9.99, "tuesday")).toBe(0);
+  test("should return 0 when hour is 9h59 (service closed)", () => {
+    expect(calculateSurge(9.99, "tuesday" as Day)).toBe(0);
   });
 
-  test("10h → ouvert (1.0)", () => {
-    expect(calculateSurge(10, "tuesday")).toBe(1.0);
+  test("should return 1.0 when hour is exactly 10h (opening)", () => {
+    expect(calculateSurge(10, "tuesday" as Day)).toBe(1.0);
+  });
+});
+
+const promo20: PromoCode = {
+  code: "PROMO20",
+  type: "percentage",
+  value: 20,
+  minOrder: 10,
+  expiresAt: "2099-12-31",
+};
+
+const orderPromoCodes: PromoCode[] = [promo20];
+
+describe("calculateOrderTotal", () => {
+  const items: Item[] = [{ name: "Pizza", price: 12.5, quantity: 2 }];
+
+  // 🟢 scenario complet
+  test("should return correct total when no promo on tuesday at 15h", () => {
+    const result = calculateOrderTotal(
+      items,
+      5,
+      2,
+      null as unknown as PromoCode,
+      orderPromoCodes,
+      15,
+      "tuesday" as Day,
+    );
+
+    expect(result.subtotal).toBe(25);
+    expect(result.surge).toBe(1.0);
+    expect(result.total).toBe(26);
+  });
+
+  test("should apply 5€ discount when using 20% promo on 25€ order", () => {
+    const result = calculateOrderTotal(
+      items,
+      5,
+      2,
+      promo20,
+      orderPromoCodes,
+      15,
+      "tuesday" as Day,
+    );
+
+    expect(result.discount).toBe(5);
+    expect(result.total).toBe(21);
+  });
+
+  test("should return surge 1.8 when ordering on friday evening", () => {
+    const result = calculateOrderTotal(
+      items,
+      5,
+      2,
+      null as unknown as PromoCode,
+      orderPromoCodes,
+      20,
+      "friday" as Day,
+    );
+
+    expect(result.surge).toBe(1.8);
+  });
+
+  // 🔴 erreurs
+  test("should throw when cart is empty", () => {
+    expect(() =>
+      calculateOrderTotal(
+        [],
+        5,
+        2,
+        null as unknown as PromoCode,
+        orderPromoCodes,
+        15,
+        "tuesday" as Day,
+      ),
+    ).toThrow();
+  });
+
+  test("should throw when item price is negative", () => {
+    const badItems: Item[] = [{ name: "Pizza", price: -10, quantity: 1 }];
+
+    expect(() =>
+      calculateOrderTotal(
+        badItems,
+        5,
+        2,
+        null as unknown as PromoCode,
+        orderPromoCodes,
+        15,
+        "tuesday" as Day,
+      ),
+    ).toThrow();
+  });
+
+  test("should throw when hour is outside service hours", () => {
+    expect(() =>
+      calculateOrderTotal(
+        items,
+        5,
+        2,
+        null as unknown as PromoCode,
+        orderPromoCodes,
+        23,
+        "tuesday" as Day,
+      ),
+    ).toThrow();
+  });
+
+  test("should throw when distance exceeds 10km", () => {
+    expect(() =>
+      calculateOrderTotal(
+        items,
+        15,
+        2,
+        null as unknown as PromoCode,
+        orderPromoCodes,
+        15,
+        "tuesday" as Day,
+      ),
+    ).toThrow();
+  });
+
+  // 🟡 cas limites
+  test("should return subtotal of 10 when item with quantity 0 is ignored", () => {
+    const items2: Item[] = [
+      { name: "Pizza", price: 12.5, quantity: 0 },
+      { name: "Burger", price: 10, quantity: 1 },
+    ];
+
+    const result = calculateOrderTotal(
+      items2,
+      5,
+      2,
+      null as unknown as PromoCode,
+      orderPromoCodes,
+      15,
+      "tuesday" as Day,
+    );
+
+    expect(result.subtotal).toBe(10);
+  });
+
+  test("should return total equal to subtotal plus deliveryFee when no promo", () => {
+    const result = calculateOrderTotal(
+      items,
+      5,
+      2,
+      null as unknown as PromoCode,
+      orderPromoCodes,
+      15,
+      "tuesday" as Day,
+    );
+
+    expect(result.total).toBe(result.subtotal + result.deliveryFee);
+  });
+
+  test("should return total greater than subtotal when surge is applied", () => {
+    const result = calculateOrderTotal(
+      items,
+      5,
+      2,
+      null as unknown as PromoCode,
+      orderPromoCodes,
+      20,
+      "friday" as Day,
+    );
+
+    expect(result.total).toBeGreaterThan(result.subtotal);
+  });
+
+  test("should return result with all required properties", () => {
+    const result = calculateOrderTotal(
+      items,
+      5,
+      2,
+      null as unknown as PromoCode,
+      orderPromoCodes,
+      15,
+      "tuesday" as Day,
+    );
+
+    expect(result).toHaveProperty("subtotal");
+    expect(result).toHaveProperty("discount");
+    expect(result).toHaveProperty("deliveryFee");
+    expect(result).toHaveProperty("surge");
+    expect(result).toHaveProperty("total");
   });
 });

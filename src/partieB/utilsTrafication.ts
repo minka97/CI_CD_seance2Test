@@ -1,5 +1,11 @@
 /** @format */
-import type { DeliveryFee, PromoCode, Day } from "../types/types.js";
+import type {
+  DeliveryFee,
+  PromoCode,
+  Day,
+  OrderResult,
+  Item,
+} from "../types/types.js";
 function calculateDeliveryFee(distance: number, weight: number): DeliveryFee {
   // 🔴 Cas d'erreur
   if (distance < 0) {
@@ -121,4 +127,74 @@ function calculateSurge(hour: number, dayOfWeek: Day): number {
   return 1.0;
 }
 
-export { calculateDeliveryFee, applyPromoCode, calculateSurge };
+function calculateOrderTotal(
+  items: Item[],
+  distance: number,
+  weight: number,
+  promoCode: PromoCode,
+  promoCodes: PromoCode[],
+  hour: number,
+  dayOfWeek: Day,
+): OrderResult {
+  // 🔴 validations
+  if (!items || items.length === 0) {
+    throw new Error("Empty cart");
+  }
+
+  if (hour < 10 || hour > 22) {
+    throw new Error("Service closed");
+  }
+
+  // 🔴 validation items
+  for (const item of items) {
+    if (item.price < 0) {
+      throw new Error("Invalid price");
+    }
+  }
+
+  // 🟢 subtotal
+  const subtotal = Number(
+    items
+      .filter((item) => item.quantity > 0)
+      .reduce((sum, item) => sum + item.price * item.quantity, 0)
+      .toFixed(2),
+  );
+
+  // 🟢 promo
+  const afterPromo = applyPromoCode(subtotal, promoCode, promoCodes);
+  const discount = Number((subtotal - afterPromo).toFixed(2));
+
+  // 🟢 livraison
+  const delivery = calculateDeliveryFee(distance, weight);
+
+  if (delivery === null) {
+    throw new Error("Out of delivery zone");
+  }
+
+  // 🟢 surge
+  const surge = calculateSurge(hour, dayOfWeek);
+
+  if (surge === 0) {
+    throw new Error("Service closed");
+  }
+
+  const deliveryWithSurge = Number((delivery * surge).toFixed(2));
+
+  // 🟢 total
+  const total = Number((afterPromo + deliveryWithSurge).toFixed(2));
+
+  return {
+    subtotal,
+    discount,
+    deliveryFee: deliveryWithSurge,
+    surge,
+    total,
+  };
+}
+
+export {
+  calculateOrderTotal,
+  calculateDeliveryFee,
+  applyPromoCode,
+  calculateSurge,
+};

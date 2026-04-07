@@ -23,3 +23,17 @@ export type Day =
   | "friday"
   | "saturday"
   | "sunday";
+
+export type Item = {
+  name: string;
+  price: number;
+  quantity: number;
+};
+
+export type OrderResult = {
+  subtotal: number;
+  discount: number;
+  deliveryFee: number;
+  surge: number;
+  total: number;
+};
