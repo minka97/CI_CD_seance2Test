@@ -4,3 +4,4 @@ export interface Student {
   grade: number;
   age: number;
 }
+export type DeliveryFee = number | null;
