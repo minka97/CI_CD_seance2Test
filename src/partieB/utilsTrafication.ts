@@ -1,5 +1,5 @@
 /** @format */
-import type { DeliveryFee, PromoCode } from "../types/types.js";
+import type { DeliveryFee, PromoCode, Day } from "../types/types.js";
 function calculateDeliveryFee(distance: number, weight: number): DeliveryFee {
   // 🔴 Cas d'erreur
   if (distance < 0) {
@@ -84,4 +84,41 @@ function applyPromoCode(
   return Number(total.toFixed(2));
 }
 
-export { calculateDeliveryFee, applyPromoCode };
+function calculateSurge(hour: number, dayOfWeek: Day): number {
+  // 🔴 hors horaires
+  if (hour < 10 || hour > 22) {
+    return 0;
+  }
+
+  // 🟢 dimanche
+  if (dayOfWeek === "sunday") {
+    return 1.2;
+  }
+
+  const isWeekday =
+    dayOfWeek === "monday" ||
+    dayOfWeek === "tuesday" ||
+    dayOfWeek === "wednesday" ||
+    dayOfWeek === "thursday";
+
+  // 🟢 lundi-jeudi
+  if (isWeekday) {
+    if (hour >= 12 && hour <= 13.5) return 1.3; // déjeuner
+    if (hour >= 19 && hour <= 21) return 1.5; // dîner
+    return 1.0; // normal
+  }
+
+  // 🟢 vendredi-samedi soir
+  if (
+    (dayOfWeek === "friday" || dayOfWeek === "saturday") &&
+    hour >= 19 &&
+    hour <= 22
+  ) {
+    return 1.8;
+  }
+
+  // 🟢 autres cas ouverts
+  return 1.0;
+}
+
+export { calculateDeliveryFee, applyPromoCode, calculateSurge };

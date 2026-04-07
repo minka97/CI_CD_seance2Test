@@ -3,6 +3,7 @@
 import {
   calculateDeliveryFee,
   applyPromoCode,
+  calculateSurge,
 } from "../partieB/utilsTrafication.js";
 import type { PromoCode } from "../types/types.js";
 
@@ -123,7 +124,11 @@ describe("applyPromoCode", () => {
 
   // 🟡 cas limites
   test("should return 0 when fixed discount exceeds subtotal", () => {
-    expect(applyPromoCode(3, bienvenue20, [{ ...bienvenue20, minOrder: 0, type: "fixed", value: 10 }])).toBe(0);
+    expect(
+      applyPromoCode(3, bienvenue20, [
+        { ...bienvenue20, minOrder: 0, type: "fixed", value: 10 },
+      ]),
+    ).toBe(0);
   });
 
   test("should return 0 when percentage promo is 100%", () => {
@@ -143,10 +148,56 @@ describe("applyPromoCode", () => {
 
   // 🚫 inputs invalides
   test("should return subtotal without reduction when promo code is null", () => {
-    expect(applyPromoCode(20, null as unknown as PromoCode, promoCodes)).toBe(20);
+    expect(applyPromoCode(20, null as unknown as PromoCode, promoCodes)).toBe(
+      20,
+    );
   });
 
   test("should throw when subtotal is negative", () => {
     expect(() => applyPromoCode(-10, reduc5, promoCodes)).toThrow();
+  });
+});
+
+describe("calculateSurge", () => {
+  // 🟢 cas normaux
+  test("mardi 15h → normal (1.0)", () => {
+    expect(calculateSurge(15, "tuesday")).toBe(1.0);
+  });
+
+  test("mercredi 12h30 → déjeuner (1.3)", () => {
+    expect(calculateSurge(12.5, "wednesday")).toBe(1.3);
+  });
+
+  test("jeudi 20h → dîner (1.5)", () => {
+    expect(calculateSurge(20, "thursday")).toBe(1.5);
+  });
+
+  test("vendredi 21h → weekend soir (1.8)", () => {
+    expect(calculateSurge(21, "friday")).toBe(1.8);
+  });
+
+  test("dimanche 14h → dimanche (1.2)", () => {
+    expect(calculateSurge(14, "sunday")).toBe(1.2);
+  });
+
+  // 🟡 limites
+  test("11h30 → encore normal (1.0)", () => {
+    expect(calculateSurge(11.5, "monday")).toBe(1.0);
+  });
+
+  test("19h pile → dinner (1.5)", () => {
+    expect(calculateSurge(19, "wednesday")).toBe(1.5);
+  });
+
+  test("22h pile → encore ouvert (1.8 vendredi)", () => {
+    expect(calculateSurge(22, "friday")).toBe(1.8);
+  });
+
+  test("9h59 → fermé (0)", () => {
+    expect(calculateSurge(9.99, "tuesday")).toBe(0);
+  });
+
+  test("10h → ouvert (1.0)", () => {
+    expect(calculateSurge(10, "tuesday")).toBe(1.0);
   });
 });

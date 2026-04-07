@@ -14,3 +14,12 @@ export type PromoCode = {
   minOrder: number;
   expiresAt: string; // format YYYY-MM-DD
 };
+
+export type Day =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
