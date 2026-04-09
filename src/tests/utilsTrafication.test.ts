@@ -230,7 +230,7 @@ describe("calculateOrderTotal", () => {
 
     expect(result.subtotal).toBe(25);
     expect(result.surge).toBe(1.0);
-    expect(result.total).toBe(26);
+    expect(result.total).toBe(28); // delivery = 2 + (5-3)*0.5 = 3 ; total = 25 + 3
   });
 
   test("should apply 5€ discount when using 20% promo on 25€ order", () => {
@@ -245,7 +245,7 @@ describe("calculateOrderTotal", () => {
     );
 
     expect(result.discount).toBe(5);
-    expect(result.total).toBe(21);
+    expect(result.total).toBe(23); // afterPromo = 20 ; delivery = 3 ; total = 20 + 3
   });
 
   test("should return surge 1.8 when ordering on friday evening", () => {
