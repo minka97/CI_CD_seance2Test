@@ -66,7 +66,7 @@ describe("sortStudents", () => {
   });
 
   test("should return empty array for null input", () => {
-    const result = sortStudents(null as any, "grade", "asc");
+    const result = sortStudents(null as unknown as never[], "grade", "asc");
 
     expect(result).toEqual([]);
   });
